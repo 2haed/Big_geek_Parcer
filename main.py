@@ -7,6 +7,7 @@ from config import host, user, password, db_name
 from collections import namedtuple
 
 UrlPath = namedtuple("URLPATH", ["path", "desc"])
+SaverPath = namedtuple("SAVER", ["func", "desc"])
 HOST = 'https://biggeek.ru/'
 URL = 'https://biggeek.ru/'
 HEADERS = {
@@ -36,6 +37,12 @@ URL_LOWER_PATHS = {
     '9': UrlPath("catalog/dlya-doma", "Для Дома"),
 }
 
+SAVER = {
+    '1': SaverPath("save_sql", "SQL"),
+    '2': SaverPath("save_json", "JSON"),
+    '3': SaverPath("save_csv", "CSV")
+}
+
 def get_html(url, page=-1):
     if page != -1:
         url += "?page=" + str(page)
@@ -62,11 +69,10 @@ def get_content(html):
 
 
 def save_csv(items, filepath):
-    with open(filepath, 'w', newline='', encoding="UTF-8") as file:
+    with open(filepath, 'a+', newline='', encoding="UTF-8") as file:
         writer = csv.writer(file, delimiter=';')
-        writer.writerow(['Title', 'Price', 'Old-Price', 'Link-Product', 'Image'])
         for item in items:
-            writer.writerow([item['title'], item['price'].replace('?', ''), item['old-price'], item['link-product'],
+            writer.writerow([item['title'], item['price'].replace('₽', ''), item['old-price'], item['link-product'],
                              item['card_image']])
 
 
@@ -102,10 +108,10 @@ def save_sql(items):
         connection.close()
 
 def save_json(items, filepath):
-    with open(filepath, 'w', encoding="UTF-8") as json_file:
+    with open(filepath, 'a+', encoding="UTF-8") as json_file:
         json.dump(items, json_file, indent=2, separators=(', ', ': '), ensure_ascii=False)
 
-def parser(path: str):
+def parser(path: str, saver):
     print(f"Parsed data from: {URL + path}")
     current_url = URL + path
     response = requests.get(current_url, HEADERS)
@@ -117,8 +123,12 @@ def parser(path: str):
     else:
         print('Всего страниц: 1')
     page_amount = input('Укажите количество страниц для парсинга: ')
-    # print('Введите путь файла с названием в конце')
-    # filepath = input() + '.json'
+    if saver.upper() == "JSON":
+        print('Введите путь файла с названием в конце')
+        filepath = input() + '.json'
+    elif saver.upper() == "CSV":
+        print('Введите путь файла с названием в конце')
+        filepath = input() + '.csv'
     page_amount = int(page_amount.strip())
     html = get_html(current_url)
 
@@ -128,7 +138,12 @@ def parser(path: str):
             print(f'Парсим страницу: {page + 1}')
             html = get_html(current_url, page + 1)
             cards.extend(get_content(html.text))
-            save_sql(cards)
+            if saver.upper() == "SQL":
+                save_sql(cards)
+            elif saver.upper() == "JSON":
+                save_json(cards, filepath)
+            elif saver.upper() == "CSV":
+                save_csv(cards, filepath)
             cards.clear()
 
 
@@ -153,13 +168,19 @@ while True:
         print("Bye!")
         break
     if choice in URLPATH:
-        parser(URLPATH[choice].path)
+        for i in SAVER.values():
+            print(i[1])
+        saver: str = input("Where to parse?: ")
+        parser(URLPATH[choice].path, saver)
     elif choice == "1":
         dropdown_header_link = soup.find_all('a', class_='category-dropdown-header__link')
         for i in range(len(dropdown_header_link) - 9):
             print(i + 1, ". ", dropdown_header_link[i].text, sep='')
         choice: str = input("What to parse?: ")
-        parser(URL_LOWER_PATHS[choice].path)
+        for i in SAVER.values():
+            print(i[1])
+        saver: str = input("Where to parse?: ")
+        parser(URL_LOWER_PATHS[choice].path, saver)
         continue
     else:
         print("Wrong choice")
