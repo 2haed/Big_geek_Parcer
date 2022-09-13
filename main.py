@@ -43,6 +43,7 @@ SAVER = {
     '3': SaverPath("save_csv", "CSV")
 }
 
+
 def get_html(url, page=-1):
     if page != -1:
         url += "?page=" + str(page)
@@ -54,7 +55,6 @@ def get_content(html):
     soup = BeautifulSoup(html, 'html.parser')
     items = soup.find_all('div', class_='catalog-card')
     cards = []
-
     for item in items:
         cards.append(
             {
@@ -67,14 +67,12 @@ def get_content(html):
         )
     return cards
 
-
 def save_csv(items, filepath):
     with open(filepath, 'a+', newline='', encoding="UTF-8") as file:
         writer = csv.writer(file, delimiter=';')
         for item in items:
             writer.writerow([item['title'], item['price'].replace('₽', ''), item['old-price'], item['link-product'],
                              item['card_image']])
-
 
 def save_sql(items):
     try:
@@ -86,7 +84,6 @@ def save_sql(items):
             cursorclass=pymysql.cursors.DictCursor
         )
         print("Connected successfully...", " ", sep='\n')
-
         with connection.cursor() as cursor:
             query_create_table = 'create table IF NOT EXISTS python_mysql.Goods (title varchar(255) unique, price int, old_price int null, link_product varchar(255), img_link varchar(255))'
             cursor.execute(query_create_table)
@@ -97,7 +94,6 @@ def save_sql(items):
             insert_query = insert_query[0: -2]
             cursor.execute(insert_query)
             connection.commit()
-
     except Exception as ex:
         if ex.args[0] == 1062:
             print("Goods are already in the database")
@@ -131,7 +127,6 @@ def parser(path: str, saver):
         filepath = input() + '.csv'
     page_amount = int(page_amount.strip())
     html = get_html(current_url)
-
     if html.status_code == 200:
         cards = []
         for page in range(0, page_amount):
@@ -145,8 +140,6 @@ def parser(path: str, saver):
             elif saver.upper() == "CSV":
                 save_csv(cards, filepath)
             cards.clear()
-
-
     else:
         print('Error')
 

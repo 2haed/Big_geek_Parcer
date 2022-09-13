@@ -1,4 +1,4 @@
 host = 'localhost'
 user = 'root'
-password = 'mysqlpwd'
+password = 'my-secret-pw'
 db_name = ''

@@ -4,8 +4,10 @@ import csv
 import json
 import pymysql
 from config import host, user, password, db_name
+from collections import namedtuple
 
-
+UrlPath = namedtuple("URLPATH", ["path", "desc"])
+SaverPath = namedtuple("SAVER", ["func", "desc"])
 HOST = 'https://biggeek.ru/'
 URL = 'https://biggeek.ru/'
 HEADERS = {
@@ -13,6 +15,32 @@ HEADERS = {
               'application/signed-exchange;v=b3;q=0.9',
     'user_agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) '
                   'Chrome/102.0.5005.167 YaBrowser/22.7.4.957 Yowser/2.5 Safari/537.36 '
+}
+URLPATH = {
+    '2': UrlPath("sale", "Акция Осенняя"),
+    '3': UrlPath("catalog/apple-iphone", "Apple Iphone"),
+    '4': UrlPath("catalog/planshety-apple-ipad", "Apple Ipad"),
+    '5': UrlPath("catalog/apple-airpods", "Apple Airpods"),
+    '6': UrlPath("catalog/aksessuary", "Аксессуары"),
+    '7': UrlPath("catalog/dlya-doma", "Для Дома"),
+}
+
+URL_LOWER_PATHS = {
+    '1': UrlPath("catalog/apple", "Apple"),
+    '2': UrlPath("catalog/xiaomi", "Xiaomi"),
+    '3': UrlPath("catalog/samsung", "Samsung"),
+    '4': UrlPath("catalog/gadgeti", "Гаджеты"),
+    '5': UrlPath("catalog/smartfony", "Смартфоны"),
+    '6': UrlPath("catalog/aksessuary", "Аксессуары"),
+    '7': UrlPath("catalog/akusticheskie-sistemi", "Акустические Системы"),
+    '8': UrlPath("catalog/dlya-avto", "Для Авто"),
+    '9': UrlPath("catalog/dlya-doma", "Для Дома"),
+}
+
+SAVER = {
+    '1': SaverPath("save_sql", "SQL"),
+    '2': SaverPath("save_json", "JSON"),
+    '3': SaverPath("save_csv", "CSV")
 }
 
 
@@ -27,7 +55,6 @@ def get_content(html):
     soup = BeautifulSoup(html, 'html.parser')
     items = soup.find_all('div', class_='catalog-card')
     cards = []
-
     for item in items:
         cards.append(
             {
@@ -40,15 +67,12 @@ def get_content(html):
         )
     return cards
 
-
 def save_csv(items, filepath):
-    with open(filepath, 'w', newline='', encoding="UTF-8") as file:
+    with open(filepath, 'a+', newline='', encoding="UTF-8") as file:
         writer = csv.writer(file, delimiter=';')
-        writer.writerow(['Title', 'Price', 'Old-Price', 'Link-Product', 'Image'])
         for item in items:
-            writer.writerow([item['title'], item['price'].replace('?', ''), item['old-price'], item['link-product'],
+            writer.writerow([item['title'], item['price'].replace('₽', ''), item['old-price'], item['link-product'],
                              item['card_image']])
-
 
 def save_sql(items):
     try:
@@ -60,7 +84,6 @@ def save_sql(items):
             cursorclass=pymysql.cursors.DictCursor
         )
         print("Connected successfully...", " ", sep='\n')
-
         with connection.cursor() as cursor:
             query_create_table = 'create table IF NOT EXISTS python_mysql.Goods (title varchar(255) unique, price int, old_price int null, link_product varchar(255), img_link varchar(255))'
             cursor.execute(query_create_table)
@@ -71,7 +94,6 @@ def save_sql(items):
             insert_query = insert_query[0: -2]
             cursor.execute(insert_query)
             connection.commit()
-
     except Exception as ex:
         if ex.args[0] == 1062:
             print("Goods are already in the database")
@@ -82,32 +104,42 @@ def save_sql(items):
         connection.close()
 
 def save_json(items, filepath):
-    with open(filepath, 'w', encoding="UTF-8") as json_file:
+    with open(filepath, 'a+', encoding="UTF-8") as json_file:
         json.dump(items, json_file, indent=2, separators=(', ', ': '), ensure_ascii=False)
 
-def parser(path: str):
+def parser(path: str, saver):
+    print(f"Parsed data from: {URL + path}")
     current_url = URL + path
     response = requests.get(current_url, HEADERS)
     soup = BeautifulSoup(response.content, 'html.parser')
     pages = soup.find_all('a', class_='prod-pagination__item')
-    max_page = pages[-1].text
-    print(f'Всего страниц: {max_page}')
+    if (len(pages) > 0):
+        max_page = pages[-1].text
+        print(f'Всего страниц: {max_page}')
+    else:
+        print('Всего страниц: 1')
     page_amount = input('Укажите количество страниц для парсинга: ')
-    print('Введите путь файла с названием в конце')
-    filepath = input() + '.json'
+    if saver.upper() == "JSON":
+        print('Введите путь файла с названием в конце')
+        filepath = input() + '.json'
+    elif saver.upper() == "CSV":
+        print('Введите путь файла с названием в конце')
+        filepath = input() + '.csv'
     page_amount = int(page_amount.strip())
     html = get_html(current_url)
-
     if html.status_code == 200:
         cards = []
         for page in range(0, page_amount):
             print(f'Парсим страницу: {page + 1}')
             html = get_html(current_url, page + 1)
             cards.extend(get_content(html.text))
-            save_sql(cards)
+            if saver.upper() == "SQL":
+                save_sql(cards)
+            elif saver.upper() == "JSON":
+                save_json(cards, filepath)
+            elif saver.upper() == "CSV":
+                save_csv(cards, filepath)
             cards.clear()
-
-
     else:
         print('Error')
 
@@ -115,6 +147,7 @@ def parser(path: str):
 
 
 while True:
+    print("Categories:")
     response = requests.get(URL, HEADERS)
     soup = BeautifulSoup(response.content, 'html.parser')
     first = soup.find('button', class_='dropdown-header__button')
@@ -123,59 +156,24 @@ while True:
     for i in range(0, len(others)):
         print(i + 2, ". ", others[i].text, sep='')
     print("Введите значение или -1 для выхода:", " ", sep="\n")
-    value = input()
-    if (value not in "1234567-1"):
-        print("Incorrect number")
-    elif (int(value) == -1):
-        print("Exit")
+    choice: str = input("What to parse?: ")
+    if choice == "-1":
+        print("Bye!")
         break
-    elif (int(value) == 1):
+    if choice in URLPATH:
+        for i in SAVER.values():
+            print(i[1])
+        saver: str = input("Where to parse?: ")
+        parser(URLPATH[choice].path, saver)
+    elif choice == "1":
         dropdown_header_link = soup.find_all('a', class_='category-dropdown-header__link')
         for i in range(len(dropdown_header_link) - 9):
-            print(i+1, ". ", dropdown_header_link[i].text, sep='')
-        value = input()
-        if (int(value) == 1):
-            parser('catalog/apple')
-            continue
-        if (int(value) == 2):
-            parser('catalog/xiaomi')
-            continue
-        if (int(value) == 3):
-            parser('catalog/samsung')
-            continue
-        if (int(value) == 4):
-            parser('catalog/gadgeti')
-            continue
-        if (int(value) == 5):
-            parser('catalog/smartfony')
-            continue
-        if (int(value) == 6):
-            parser('catalog/aksessuary')
-            continue
-        if (int(value) == 7):
-            parser('catalog/akusitcheskie-sistemi')
-            continue
-        if (int(value) == 8):
-            parser('catalog/dlya-avto')
-            continue
-        if (int(value) == 9):
-            parser('catalog/dlya-doma')
-            continue
-    elif (int(value) == 2):
-        parser('sale')
+            print(i + 1, ". ", dropdown_header_link[i].text, sep='')
+        choice: str = input("What to parse?: ")
+        for i in SAVER.values():
+            print(i[1])
+        saver: str = input("Where to parse?: ")
+        parser(URL_LOWER_PATHS[choice].path, saver)
         continue
-    elif (int(value) == 3):
-        parser('catalog/apple-iphone')
-        continue
-    elif (int(value) == 4):
-        parser('catalog/planshety-apple-ipad')
-        continue
-    elif (int(value) == 5):
-        parser('catalog/apple-airpods')
-        continue
-    elif (int(value) == 6):
-        parser('catalog/aksessuary')
-        continue
-    elif (int(value) == 7):
-        parser('catalog/dlya-doma')
-        continue
+    else:
+        print("Wrong choice")

@@ -26,6 +26,7 @@ for item in items:
             }
         )
 
-category_dropdown_link = soup.find_all('li', class_='category-dropdown-header__sub-item')
+category_dropdown_link = soup.find_all('a', class_='category-dropdown-header__sub-link')
 for i in range(len(category_dropdown_link)):
-    print(i+1, ". ", category_dropdown_link[i].text, sep='')
+    if category_dropdown_link[i].text == 'Apple iPad':
+        print(i+1, ". ", category_dropdown_link[i].text, sep='')
