@@ -85,7 +85,7 @@ def save_sql(items: list[dict[str, any]]):
         )
         print("Connected successfully...", " ", sep='\n')
         with connection.cursor() as cursor:
-            query_create_table = 'create table IF NOT EXISTS public.Goods (id serial primary key, title varchar(255) unique, price int, old_price int null, link_product varchar(255), img_link varchar(255))'
+            query_create_table = 'create table IF NOT EXISTS public.Goods (good_id serial primary key, title varchar(255) unique, price int, old_price int null, link_product varchar(255), img_link varchar(255))'
             cursor.execute(query_create_table)
         with connection.cursor() as cursor:
             insert_query = 'INSERT INTO public.Goods (title, price, old_price, link_product, img_link) VALUES '
