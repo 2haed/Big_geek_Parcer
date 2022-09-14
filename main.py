@@ -1,3 +1,4 @@
+import psycopg2
 import requests
 from bs4 import BeautifulSoup
 import csv
@@ -74,21 +75,20 @@ def save_csv(items, filepath):
             writer.writerow([item['title'], item['price'].replace('₽', ''), item['old-price'], item['link-product'],
                              item['card_image']])
 
-def save_sql(items):
+def save_sql(items: list[dict[str, any]]):
     try:
-        connection = pymysql.connect(
+        connection = psycopg2.connect(
             host=host,
             user=user,
             password=password,
-            database=db_name,
-            cursorclass=pymysql.cursors.DictCursor
+            database=db_name
         )
         print("Connected successfully...", " ", sep='\n')
         with connection.cursor() as cursor:
-            query_create_table = 'create table IF NOT EXISTS python_mysql.Goods (title varchar(255) unique, price int, old_price int null, link_product varchar(255), img_link varchar(255))'
+            query_create_table = 'create table IF NOT EXISTS public.Goods (title varchar(255) unique, price int, old_price int null, link_product varchar(255), img_link varchar(255))'
             cursor.execute(query_create_table)
         with connection.cursor() as cursor:
-            insert_query = 'INSERT INTO python_mysql.Goods (title, price, old_price, link_product, img_link) VALUES '
+            insert_query = 'INSERT INTO public.Goods (title, price, old_price, link_product, img_link) VALUES '
             for item in items:
                 insert_query += f'(\'{item["title"]}\', {item["price"].replace("₽", "").replace(" ", "")}, {item["old-price"].replace(" ", "") if item["old-price"] != "" else 0},  \'{item["link-product"]}\', \'{item["card_image"]}\'),\n'
             insert_query = insert_query[0: -2]
