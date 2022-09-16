@@ -1,4 +1,4 @@
 host = 'localhost'
-user = 'root'
-password = 'my-secret-pw'
-db_name = ''
+user = 'postgres'
+password = 'password'
+db_name = 'postgres'

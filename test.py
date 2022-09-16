@@ -1,6 +1,8 @@
+import pymysql
 import requests
 from bs4 import BeautifulSoup
 import json
+
 
 
 URL = 'https://biggeek.ru/catalog/apple'
