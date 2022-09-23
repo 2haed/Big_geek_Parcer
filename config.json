@@ -1,0 +1,13 @@
+{
+  "url": "https://biggeek.ru/",
+  "saver": {
+    "name": "sql",
+    "args": {
+      "host": "localhost",
+      "user": "postgres",
+      "password": "password",
+      "database": "postgres",
+      "port": 5432
+    }
+  }
+}
